@@ -19,7 +19,15 @@ FONTE_PRINCIPAL = "Segoe UI"
 FONTE_TITULO = "Segoe UI"
 FONTE_SUBTITULO = "Segoe UI"
 
-LAYOUTS_SUPORTADOS = {"comparativo", "conceitos"}
+LAYOUTS_SUPORTADOS = {
+    "comparativo",
+    "conceitos",
+    "titulo",
+    "title_left_text_right",
+    "title_top_bullets",
+    "title_top_grid_2x2",
+    "title_top_text_block",
+}
 
 THEME_DEFAULT = {
     "profile": "default",
@@ -55,10 +63,25 @@ THEME_DEFAULT = {
         "column_gap_in": 0.5,
         "bottom_block_top_in": 4.8,
         "bottom_block_height_in": 2.0,
+        "max_content_top_in": 2.2,
+        "max_left_title_width_in": 3.2,
+        "max_left_content_width_in": 8.4,
     },
     "parsing": {
         "strip_page_prefix": True,
         "ignore_sections": ["Notas Estruturais para Python-PPTX"],
+    },
+    "title": {
+        "accent_words": [
+            "DESIGN VISUAL",
+            "SLIDE EM MAIUSCULO",
+            "SLIDE EM MAIUSCULA",
+            "PRATICAS",
+            "BOAS PRATICAS",
+            "COMPARATIVO",
+            "RESULTADO",
+        ],
+        "force_uppercase": False,
     },
 }
 
@@ -99,6 +122,76 @@ def _decorar_titulo(texto):
         if termo in low and emoji not in base:
             return f"{emoji} {base}"
     return base
+
+
+def _split_title_accent(texto):
+    clean = (texto or "").strip()
+    upper = clean.upper()
+    accent_words = THEME_ACTIVE.get("title", {}).get("accent_words", [])
+    for item in accent_words:
+        up_item = str(item).upper().strip()
+        pos = upper.find(up_item)
+        if pos > -1:
+            left = clean[:pos].strip()
+            return left, clean[pos : pos + len(up_item)].strip(), clean[pos + len(up_item) :].strip()
+
+    if ":" in clean:
+        left, right = clean.split(":", 1)
+        return left.strip(), right.strip(), ""
+
+    marker = " DE "
+    pos = upper.rfind(marker)
+    if pos > -1:
+        left = clean[:pos].strip()
+        right = clean[pos + len(marker) :].strip()
+        return left, f"DE {right}", ""
+
+    return clean, "", ""
+
+
+def _formatar_titulo_slide(texto):
+    value = (texto or "").strip()
+    if THEME_ACTIVE.get("title", {}).get("force_uppercase", False):
+        return value.upper()
+    return value
+
+
+def _adicionar_titulo_max(slide, texto, top=None):
+    texto = _formatar_titulo_slide(texto)
+    mx = THEME_ACTIVE["layout"]["margin_x_in"]
+    largura = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
+    top = THEME_ACTIVE["layout"]["title_top_in"] if top is None else top
+    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(1.9))
+    tf = textbox.text_frame
+    tf.clear()
+    _ajustar_text_frame(tf)
+    tf.paragraphs[0].clear()
+
+    principal, destaque, sufixo = _split_title_accent(texto)
+    p = tf.paragraphs[0]
+    run = p.add_run()
+    run.text = principal
+    run.font.name = FONTE_TITULO
+    run.font.size = _tamanho_titulo(texto)
+    run.font.bold = False
+    run.font.color.rgb = COR_TITULO
+
+    if destaque:
+        p2 = tf.add_paragraph()
+        run2 = p2.add_run()
+        run2.text = destaque
+        run2.font.name = FONTE_TITULO
+        run2.font.size = _tamanho_titulo(texto)
+        run2.font.bold = False
+        run2.font.color.rgb = COR_DESTAQUE
+        if sufixo:
+            run3 = p2.add_run()
+            run3.text = f" {sufixo}"
+            run3.font.name = FONTE_TITULO
+            run3.font.size = _tamanho_titulo(texto)
+            run3.font.bold = False
+            run3.font.color.rgb = COR_TITULO
+    return textbox
 
 
 def _merge_dict(base, override):
@@ -148,6 +241,47 @@ def _load_theme(theme_path=None, profile=None):
                     },
                 },
             )
+        if profile == "max":
+            _merge_dict(
+                tema,
+                {
+                    "fonts": {
+                        "title_size_max": 58,
+                        "title_size_mid": 50,
+                        "title_size_small": 42,
+                        "title_size_min": 34,
+                        "subtitle_size": 26,
+                        "body_size": 22,
+                    },
+                    "colors": {
+                        "body": "#C9C9C9",
+                        "accent": "#FF2E93",
+                        "card_bg": "#000000",
+                        "card_border": "#000000",
+                    },
+                    "layout": {
+                        "margin_x_in": 0.85,
+                        "title_top_in": 0.45,
+                        "subtitle_top_in": 1.45,
+                        "content_top_in": 2.0,
+                        "column_gap_in": 0.45,
+                        "max_content_top_in": 2.25,
+                        "max_left_title_width_in": 3.3,
+                        "max_left_content_width_in": 8.3,
+                    },
+                    "title": {
+                        "accent_words": [
+                            "DESIGN VISUAL",
+                            "SLIDE EM MAIUSCULO",
+                            "SLIDE EM MAIUSCULA",
+                            "RESULTADOS",
+                            "PRATICAS",
+                            "REGRAS",
+                        ],
+                        "force_uppercase": True,
+                    },
+                },
+            )
     return tema
 
 
@@ -181,6 +315,10 @@ def configurar_slide(slide):
 
 def adicionar_titulo(slide, texto, top=None):
     """Adiciona titulo principal."""
+    if THEME_ACTIVE.get("profile") == "max":
+        return _adicionar_titulo_max(slide, texto, top=top)
+
+    texto = _formatar_titulo_slide(texto)
     mx = THEME_ACTIVE["layout"]["margin_x_in"]
     largura = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
     top = THEME_ACTIVE["layout"]["title_top_in"] if top is None else top
@@ -293,6 +431,13 @@ def _remover_prefixo_pagina(texto):
     return re.sub(r"^\s*p[aá]gina\s*\d+\s*:\s*", "", texto, flags=re.IGNORECASE).strip()
 
 
+def _normalizar_rotulo(texto):
+    txt = texto.strip().lower()
+    txt = txt.replace("í", "i").replace("ã", "a").replace("â", "a").replace("ç", "c")
+    txt = re.sub(r"[^a-z]", "", txt)
+    return txt
+
+
 def _descricao_secao(secao):
     itens = secao.get("itens", [])
     if not itens:
@@ -300,8 +445,48 @@ def _descricao_secao(secao):
     return " ".join(itens).strip()
 
 
+def _word_count(texto):
+    return len(re.findall(r"\w+", texto or ""))
+
+
 def _inferir_layout_generico(slide, secoes_genericas):
     if not secoes_genericas:
+        slide["layout"] = "titulo"
+        return
+
+    if THEME_ACTIVE.get("profile") == "max":
+        if len(secoes_genericas) >= 4:
+            slide["layout"] = "title_top_grid_2x2"
+            for secao in secoes_genericas[:4]:
+                itens = secao.get("itens") or [secao["titulo"]]
+                slide["listas"].append({"titulo": secao["titulo"], "itens": itens})
+            if len(secoes_genericas) > 4:
+                extra = []
+                for secao in secoes_genericas[4:]:
+                    extra.extend(secao.get("itens") or [secao["titulo"]])
+                if extra:
+                    slide["subtitle"] = " ".join(extra)[:180]
+            return
+
+        if len(secoes_genericas) == 1:
+            secao = secoes_genericas[0]
+            texto = " ".join(secao.get("itens", []))
+            if _word_count(texto) > 45:
+                slide["layout"] = "title_top_text_block"
+                slide["listas"].append({"titulo": secao["titulo"], "itens": [texto]})
+                return
+
+        if len(secoes_genericas) in (2, 3):
+            slide["layout"] = "title_top_bullets"
+            for secao in secoes_genericas:
+                itens = secao.get("itens") or [secao["titulo"]]
+                slide["listas"].append({"titulo": secao["titulo"], "itens": itens})
+            return
+
+        slide["layout"] = "title_left_text_right"
+        for secao in secoes_genericas:
+            itens = secao.get("itens") or [secao["titulo"]]
+            slide["listas"].append({"titulo": secao["titulo"], "itens": itens})
         return
 
     titulos = [s["titulo"].lower() for s in secoes_genericas[:2]]
@@ -359,6 +544,7 @@ def _parse_slide_block(block, idx):
     secoes_genericas = []
     secao_atual = None
     ignorando_secao = False
+    campo_pendente = None
 
     i = 1
     dentro_codigo = False
@@ -372,16 +558,19 @@ def _parse_slide_block(block, idx):
 
         if linha.startswith("> "):
             slide["subtitle"] = _limpar_markdown_inline(linha[2:].strip())
+            campo_pendente = None
             i += 1
             continue
 
         if linha.lower().startswith("layout:"):
             slide["layout"] = linha.split(":", 1)[1].strip().lower()
+            campo_pendente = None
             i += 1
             continue
 
         if subtitulo_h2_idx == i:
             slide["subtitle"] = _limpar_markdown_inline(linha[3:].strip())
+            campo_pendente = None
             i += 1
             continue
 
@@ -400,6 +589,7 @@ def _parse_slide_block(block, idx):
             if not itens:
                 raise ValueError(f"Slide {idx}, lista '{titulo_lista}': lista sem itens.")
             slide["listas"].append({"titulo": titulo_lista, "itens": itens})
+            campo_pendente = None
             continue
 
         m_conceito = re.match(r"^##\s+conceito:\s*(.+)$", linha, re.IGNORECASE)
@@ -417,6 +607,7 @@ def _parse_slide_block(block, idx):
             if not descricao:
                 raise ValueError(f"Slide {idx}, conceito '{titulo_conceito}': descricao vazia.")
             slide["conceitos"].append({"titulo": titulo_conceito, "descricao": descricao})
+            campo_pendente = None
             continue
 
         m_secao = re.match(r"^(##|###|####)\s+(.+)$", linha)
@@ -428,6 +619,12 @@ def _parse_slide_block(block, idx):
                 i += 1
                 continue
             ignorando_secao = False
+            rotulo = _normalizar_rotulo(titulo_secao)
+            if rotulo in {"titulo", "subtitulo", "descricao"}:
+                campo_pendente = rotulo
+                secao_atual = None
+                i += 1
+                continue
             if ":" in titulo_secao:
                 prefixo, resto = titulo_secao.split(":", 1)
                 if prefixo.strip().lower() in {
@@ -442,6 +639,7 @@ def _parse_slide_block(block, idx):
                     titulo_secao = resto.strip()
             secao_atual = {"titulo": titulo_secao, "itens": []}
             secoes_genericas.append(secao_atual)
+            campo_pendente = None
             i += 1
             continue
 
@@ -451,6 +649,16 @@ def _parse_slide_block(block, idx):
 
         if linha.startswith(("- ", "* ")):
             texto_item = _limpar_markdown_inline(linha[2:].strip())
+            if campo_pendente == "titulo":
+                slide["title"] = _remover_prefixo_pagina(texto_item)
+                campo_pendente = None
+                i += 1
+                continue
+            if campo_pendente == "subtitulo":
+                slide["subtitle"] = texto_item
+                campo_pendente = None
+                i += 1
+                continue
             if not secao_atual:
                 secao_atual = {"titulo": "Conteudo", "itens": []}
                 secoes_genericas.append(secao_atual)
@@ -468,6 +676,7 @@ def _parse_slide_block(block, idx):
             continue
 
         if linha.startswith("|") and "|" in linha[1:]:
+            campo_pendente = None
             if not secao_atual:
                 secao_atual = {"titulo": "Tabela", "itens": []}
                 secoes_genericas.append(secao_atual)
@@ -476,6 +685,17 @@ def _parse_slide_block(block, idx):
             continue
 
         if not dentro_codigo and linha:
+            if campo_pendente == "titulo":
+                slide["title"] = _remover_prefixo_pagina(_limpar_markdown_inline(linha))
+                campo_pendente = None
+                i += 1
+                continue
+            if campo_pendente == "subtitulo":
+                slide["subtitle"] = _limpar_markdown_inline(linha)
+                campo_pendente = None
+                i += 1
+                continue
+            campo_pendente = None
             if not secao_atual:
                 secao_atual = {"titulo": "Conteudo", "itens": []}
                 secoes_genericas.append(secao_atual)
@@ -487,9 +707,10 @@ def _parse_slide_block(block, idx):
         _inferir_layout_generico(slide, secoes_genericas)
 
     if not slide["layout"]:
+        layouts = ", ".join(sorted(LAYOUTS_SUPORTADOS))
         raise ValueError(
             f"Slide {idx}: nao foi possivel inferir o layout. "
-            "Use 'layout: comparativo' ou 'layout: conceitos'."
+            f"Use um layout explicito, por exemplo: {layouts}."
         )
     if slide["layout"] not in LAYOUTS_SUPORTADOS:
         layouts = ", ".join(sorted(LAYOUTS_SUPORTADOS))
@@ -619,6 +840,141 @@ def render_slide_conceitos(slide, data):
         )
 
 
+def _add_body_lines(slide, lines, left, top, width, height, size=None):
+    size = size or THEME_ACTIVE["fonts"]["body_size"]
+    box = slide.shapes.add_textbox(left, top, width, height)
+    tf = box.text_frame
+    tf.clear()
+    _ajustar_text_frame(tf)
+    first = True
+    for line in lines:
+        if not line:
+            continue
+        p = tf.paragraphs[0] if first else tf.add_paragraph()
+        first = False
+        run = p.add_run()
+        run.text = line
+        run.font.name = FONTE_PRINCIPAL
+        run.font.size = Pt(size)
+        run.font.color.rgb = COR_TEXTO
+    return box
+
+
+def render_slide_title_left_text_right(slide, data):
+    layout = THEME_ACTIVE["layout"]
+    slide_cfg = THEME_ACTIVE["slide"]
+    mx = layout["margin_x_in"]
+    top = layout.get("max_content_top_in", 2.2)
+    left_width = layout.get("max_left_title_width_in", 3.2)
+    usable_width = slide_cfg["width_in"] - (mx * 2)
+    gap = layout["column_gap_in"]
+    right_x = mx + left_width + gap
+    right_width = max(usable_width - left_width - gap, 3.0)
+    lines = []
+    for secao in data["listas"]:
+        if secao.get("titulo"):
+            lines.append(secao["titulo"])
+        lines.extend(secao.get("itens", []))
+        lines.append("")
+    _add_body_lines(
+        slide,
+        lines[:12],
+        Inches(right_x),
+        Inches(top),
+        Inches(right_width),
+        Inches(4.7),
+        size=max(THEME_ACTIVE["fonts"]["body_size"], 20),
+    )
+
+
+def render_slide_title_top_bullets(slide, data):
+    mx = THEME_ACTIVE["layout"]["margin_x_in"]
+    top = THEME_ACTIVE["layout"].get("max_content_top_in", 2.2)
+    width = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
+    y = top
+    max_blocos = 3
+    for secao in data["listas"][:max_blocos]:
+        titulo = secao.get("titulo", "")
+        itens = secao.get("itens", [])
+        clean_items = []
+        titulo_norm = _limpar_markdown_inline(titulo).strip().lower().rstrip(":")
+        for item in itens:
+            val = _limpar_markdown_inline(item).strip()
+            if not val:
+                continue
+            val_norm = val.lower().rstrip(":")
+            if val_norm == titulo_norm:
+                continue
+            if val_norm.startswith(f"{titulo_norm}:"):
+                continue
+            clean_items.append(val)
+
+        lines = [f"• {item}" for item in clean_items[:3]]
+        box = slide.shapes.add_textbox(Inches(mx), Inches(y), Inches(width), Inches(1.8))
+        tf = box.text_frame
+        tf.clear()
+        _ajustar_text_frame(tf)
+        p = tf.paragraphs[0]
+        run = p.add_run()
+        run.text = titulo
+        run.font.name = FONTE_TITULO
+        run.font.size = Pt(28)
+        run.font.color.rgb = COR_TITULO
+        run.font.bold = False
+
+        for line in lines:
+            p2 = tf.add_paragraph()
+            r2 = p2.add_run()
+            r2.text = line
+            r2.font.name = FONTE_PRINCIPAL
+            r2.font.size = Pt(20)
+            r2.font.color.rgb = COR_TEXTO
+
+        y += 1.7
+
+
+def render_slide_title_top_grid_2x2(slide, data):
+    mx = THEME_ACTIVE["layout"]["margin_x_in"]
+    top = THEME_ACTIVE["layout"].get("max_content_top_in", 2.2)
+    width = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
+    gap = THEME_ACTIVE["layout"]["column_gap_in"]
+    col_width = (width - gap) / 2
+    row_height = 2.05
+    cards = data["listas"][:4]
+    for idx, secao in enumerate(cards):
+        col = idx % 2
+        row = idx // 2
+        left = mx + col * (col_width + gap)
+        top_pos = top + row * row_height
+        header = f"{idx + 1:02d}"
+        body_title = secao.get("titulo", "")
+        body_text = " ".join(secao.get("itens", [])[:2])
+        _add_body_lines(slide, [header], Inches(left), Inches(top_pos), Inches(col_width), Inches(0.35), size=24)
+        _add_body_lines(slide, [body_title], Inches(left), Inches(top_pos + 0.35), Inches(col_width), Inches(0.55), size=26)
+        _add_body_lines(slide, [body_text], Inches(left), Inches(top_pos + 0.95), Inches(col_width), Inches(0.95), size=20)
+
+
+def render_slide_title_top_text_block(slide, data):
+    mx = THEME_ACTIVE["layout"]["margin_x_in"]
+    top = THEME_ACTIVE["layout"].get("max_content_top_in", 2.2)
+    width = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
+    text_parts = []
+    for secao in data["listas"]:
+        if secao.get("itens"):
+            text_parts.append(" ".join(secao["itens"]))
+        elif secao.get("titulo"):
+            text_parts.append(secao["titulo"])
+    _add_body_lines(
+        slide,
+        [" ".join(text_parts)],
+        Inches(mx + (width * 0.2)),
+        Inches(top),
+        Inches(width * 0.76),
+        Inches(3.7),
+        size=22,
+    )
+
+
 def renderizar_apresentacao(slides_data):
     prs = Presentation()
     prs.slide_width = Inches(THEME_ACTIVE["slide"]["width_in"])
@@ -634,6 +990,16 @@ def renderizar_apresentacao(slides_data):
             render_slide_comparativo(slide, data)
         elif data["layout"] == "conceitos":
             render_slide_conceitos(slide, data)
+        elif data["layout"] == "titulo":
+            pass
+        elif data["layout"] == "title_left_text_right":
+            render_slide_title_left_text_right(slide, data)
+        elif data["layout"] == "title_top_bullets":
+            render_slide_title_top_bullets(slide, data)
+        elif data["layout"] == "title_top_grid_2x2":
+            render_slide_title_top_grid_2x2(slide, data)
+        elif data["layout"] == "title_top_text_block":
+            render_slide_title_top_text_block(slide, data)
         else:
             print(f"Aviso: layout desconhecido '{data['layout']}'. Slide ignorado.")
 
@@ -660,7 +1026,7 @@ def parse_args():
     parser.add_argument(
         "--profile",
         default=None,
-        choices=["default", "premium"],
+        choices=["default", "premium", "max"],
         help="Perfil visual predefinido (opcional).",
     )
     return parser.parse_args()

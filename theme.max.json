@@ -1,0 +1,55 @@
+{
+  "profile": "max",
+  "slide": {
+    "ratio": "16:9",
+    "width_in": 13.333,
+    "height_in": 7.5
+  },
+  "fonts": {
+    "title_family": "Gotham HTF",
+    "subtitle_family": "Roboto",
+    "body_family": "Roboto",
+    "title_size_max": 58,
+    "title_size_mid": 50,
+    "title_size_small": 42,
+    "title_size_min": 34,
+    "subtitle_size": 26,
+    "body_size": 22
+  },
+  "colors": {
+    "background": "#000000",
+    "title": "#FFFFFF",
+    "body": "#C9C9C9",
+    "accent": "#FF2E93",
+    "card_bg": "#000000",
+    "card_border": "#000000"
+  },
+  "layout": {
+    "margin_x_in": 0.85,
+    "title_top_in": 0.45,
+    "subtitle_top_in": 1.45,
+    "content_top_in": 2.0,
+    "column_gap_in": 0.45,
+    "max_content_top_in": 2.25,
+    "max_left_title_width_in": 3.3,
+    "max_left_content_width_in": 8.3,
+    "bottom_block_top_in": 4.8,
+    "bottom_block_height_in": 2.0
+  },
+  "parsing": {
+    "strip_page_prefix": true,
+    "ignore_sections": [
+      "Notas Estruturais para Python-PPTX"
+    ]
+  },
+  "title": {
+    "accent_words": [
+      "DESIGN VISUAL",
+      "SLIDE EM MAIUSCULO",
+      "SLIDE EM MAIUSCULA",
+      "RESULTADOS",
+      "PRATICAS",
+      "REGRAS"
+    ]
+  }
+}
