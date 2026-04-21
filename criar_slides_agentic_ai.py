@@ -84,6 +84,11 @@ THEME_DEFAULT = {
         "force_uppercase": False,
     },
     "max": {
+        "background": {
+            "image_path": "",
+            "apply_after_first_slide": True,
+            "cover_first_slide_with_image": False,
+        },
         "title": {
             "box_height_in": 2.15,
             "line_spacing": 1.0,
@@ -432,6 +437,31 @@ def configurar_slide(slide):
     fill.fore_color.rgb = COR_FUNDO
 
 
+def _aplicar_background_imagem(slide, prs, image_path):
+    img = Path(image_path)
+    if not img.exists():
+        print(f"Aviso: imagem de fundo nao encontrada: '{image_path}'. Usando fundo solido.")
+        return False
+    slide.shapes.add_picture(str(img), 0, 0, width=prs.slide_width, height=prs.slide_height)
+    return True
+
+
+def configurar_slide_com_contexto(slide, prs, slide_idx):
+    configurar_slide(slide)
+    if THEME_ACTIVE.get("profile") != "max":
+        return
+    bg_cfg = _theme_get("max.background", {})
+    image_path = str(bg_cfg.get("image_path", "")).strip()
+    if not image_path:
+        return
+
+    apply_after_first = bool(bg_cfg.get("apply_after_first_slide", True))
+    cover_first = bool(bg_cfg.get("cover_first_slide_with_image", False))
+    should_apply = cover_first if slide_idx == 0 else (not apply_after_first or slide_idx >= 1)
+    if should_apply:
+        _aplicar_background_imagem(slide, prs, image_path)
+
+
 def adicionar_titulo(slide, texto, top=None):
     """Adiciona titulo principal."""
     if THEME_ACTIVE.get("profile") == "max":
@@ -555,6 +585,38 @@ def _normalizar_rotulo(texto):
     txt = txt.replace("í", "i").replace("ã", "a").replace("â", "a").replace("ç", "c")
     txt = re.sub(r"[^a-z]", "", txt)
     return txt
+
+
+def _strip_instruction_prefix(texto):
+    """
+    Remove prefixos instrucionais de markdown que nao devem aparecer no slide.
+    Ex.: 'Titulo:', 'Subtitulo:', 'Descricao:', 'Diagrama:'.
+    """
+    if not texto:
+        return ""
+    cleaned = re.sub(
+        r"^\s*(t[íi]tulo|subt[íi]tulo|descri[cç][aã]o|diagrama|cita[cç][aã]o importante|mensagem principal)\s*:\s*",
+        "",
+        texto.strip(),
+        flags=re.IGNORECASE,
+    ).strip()
+    return cleaned
+
+
+def _is_instruction_heading(texto):
+    label = _normalizar_rotulo(texto)
+    defaults = {
+        "titulo",
+        "subtitulo",
+        "descricao",
+        "diagrama",
+        "citacaoimportante",
+        "mensagemprincipal",
+    }
+    configured = set()
+    for item in _theme_get("parsing.instruction_labels", []):
+        configured.add(_normalizar_rotulo(str(item)))
+    return label in (defaults | configured)
 
 
 def _descricao_secao(secao):
@@ -738,9 +800,20 @@ def _parse_slide_block(block, idx):
                 i += 1
                 continue
             ignorando_secao = False
+            titulo_secao = _strip_instruction_prefix(titulo_secao)
+            if not titulo_secao:
+                campo_pendente = None
+                secao_atual = None
+                i += 1
+                continue
             rotulo = _normalizar_rotulo(titulo_secao)
-            if rotulo in {"titulo", "subtitulo", "descricao"}:
-                campo_pendente = rotulo
+            if _is_instruction_heading(titulo_secao):
+                if rotulo in {"titulo", "subtitulo", "descricao"}:
+                    campo_pendente = rotulo
+                else:
+                    # Cabecalhos instrucionais como "Mensagem Principal" / "Citacao Importante"
+                    # nao devem renderizar; o conteudo subsequente vira corpo normal.
+                    campo_pendente = "conteudo"
                 secao_atual = None
                 i += 1
                 continue
@@ -767,7 +840,7 @@ def _parse_slide_block(block, idx):
             continue
 
         if linha.startswith(("- ", "* ")):
-            texto_item = _limpar_markdown_inline(linha[2:].strip())
+            texto_item = _strip_instruction_prefix(_limpar_markdown_inline(linha[2:].strip()))
             if campo_pendente == "titulo":
                 slide["title"] = _remover_prefixo_pagina(texto_item)
                 campo_pendente = None
@@ -775,6 +848,15 @@ def _parse_slide_block(block, idx):
                 continue
             if campo_pendente == "subtitulo":
                 slide["subtitle"] = texto_item
+                campo_pendente = None
+                i += 1
+                continue
+            if campo_pendente == "conteudo":
+                if not secao_atual:
+                    secao_atual = {"titulo": "Conteudo", "itens": []}
+                    secoes_genericas.append(secao_atual)
+                if texto_item:
+                    secao_atual["itens"].append(texto_item)
                 campo_pendente = None
                 i += 1
                 continue
@@ -799,7 +881,9 @@ def _parse_slide_block(block, idx):
             if not secao_atual:
                 secao_atual = {"titulo": "Tabela", "itens": []}
                 secoes_genericas.append(secao_atual)
-            secao_atual["itens"].append(_limpar_markdown_inline(linha.replace("|", " ")))
+            table_line = _strip_instruction_prefix(_limpar_markdown_inline(linha.replace("|", " ")))
+            if table_line:
+                secao_atual["itens"].append(table_line)
             i += 1
             continue
 
@@ -814,11 +898,23 @@ def _parse_slide_block(block, idx):
                 campo_pendente = None
                 i += 1
                 continue
+            if campo_pendente == "conteudo":
+                if not secao_atual:
+                    secao_atual = {"titulo": "Conteudo", "itens": []}
+                    secoes_genericas.append(secao_atual)
+                plain_line = _strip_instruction_prefix(_limpar_markdown_inline(linha))
+                if plain_line:
+                    secao_atual["itens"].append(plain_line)
+                campo_pendente = None
+                i += 1
+                continue
             campo_pendente = None
             if not secao_atual:
                 secao_atual = {"titulo": "Conteudo", "itens": []}
                 secoes_genericas.append(secao_atual)
-            secao_atual["itens"].append(_limpar_markdown_inline(linha))
+            plain_line = _strip_instruction_prefix(_limpar_markdown_inline(linha))
+            if plain_line:
+                secao_atual["itens"].append(plain_line)
 
         i += 1
 
@@ -1169,9 +1265,9 @@ def renderizar_apresentacao(slides_data):
     prs = Presentation()
     prs.slide_width = Inches(THEME_ACTIVE["slide"]["width_in"])
     prs.slide_height = Inches(THEME_ACTIVE["slide"]["height_in"])
-    for data in slides_data:
+    for slide_idx, data in enumerate(slides_data):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        configurar_slide(slide)
+        configurar_slide_com_contexto(slide, prs, slide_idx)
         adicionar_titulo(slide, data["title"])
         if data["subtitle"]:
             adicionar_subtitulo(slide, data["subtitle"])

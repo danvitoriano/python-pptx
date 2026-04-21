@@ -132,6 +132,19 @@ Knobs especificos do perfil `max` (em `theme.max.json`):
 - `max.layouts.title_top_bullets`: altura/espacamento de blocos e tamanhos de heading/bullet
 - `max.layouts.title_top_grid_2x2`: altura de linha, tamanhos de header/titulo/texto
 - `max.layouts.title_top_text_block`: largura, offset e altura do bloco corrido
+- `max.background`: fundo por imagem no postech (`image_path`, `apply_after_first_slide`, `cover_first_slide_with_image`)
+
+Exemplo de fundo no `max` (capa sem imagem e demais slides com imagem):
+
+```json
+"max": {
+  "background": {
+    "image_path": "bg-default.png",
+    "apply_after_first_slide": true,
+    "cover_first_slide_with_image": false
+  }
+}
+```
 
 ## Erros comuns de parsing
 

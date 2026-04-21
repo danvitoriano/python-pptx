@@ -38,6 +38,10 @@
   },
   "parsing": {
     "strip_page_prefix": true,
+    "instruction_labels": [
+      "Citação Importante",
+      "Mensagem Principal"
+    ],
     "ignore_sections": [
       "Notas Estruturais para Python-PPTX"
     ]
@@ -54,6 +58,11 @@
     ]
   },
   "max": {
+    "background": {
+      "image_path": "bg-default.png",
+      "apply_after_first_slide": true,
+      "cover_first_slide_with_image": false
+    },
     "title": {
       "box_height_in": 2.15,
       "line_spacing": 1.0,
