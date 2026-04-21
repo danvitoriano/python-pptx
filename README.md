@@ -36,6 +36,16 @@ Executar com arquivos customizados:
 python criar_slides_agentic_ai.py --input slides.md --output Slides_Agentic_AI.pptx
 ```
 
+Executar com modo premium (perfil + tema externo):
+
+```bash
+python criar_slides_agentic_ai.py \
+  --input aula2b.md \
+  --output aula2b.pptx \
+  --profile premium \
+  --theme theme.premium.json
+```
+
 ## Schema do Markdown (`slides.md`)
 
 Cada slide deve seguir este contrato:
@@ -77,12 +87,28 @@ Descricao do conceito.
 Descricao do conceito.
 ```
 
+## Tema e personalizacao visual
+
+O script permite configurar tipografia, cores, tamanho do slide, espacamento e regras de parsing via arquivo JSON.
+
+- Arquivo de exemplo: `theme.premium.json`
+- Perfil embutido: `--profile premium`
+- O arquivo de tema sobrescreve os defaults e permite usar fontes instaladas no macOS (ex.: `Gotham HTF`, `Roboto`)
+
+Campos principais do tema:
+
+- `slide`: dimensoes do slide (`width_in`, `height_in`)
+- `fonts`: familias e tamanhos base
+- `colors`: paleta do slide
+- `layout`: margens, espacamentos e posicionamento
+- `parsing`: regras como `strip_page_prefix` e `ignore_sections`
+
 ## Erros comuns de parsing
 
 O script falha com mensagem clara quando encontra:
 
 - Slide sem titulo iniciado por `# `
-- Slide sem `layout:`
+- Slide sem `layout:` quando nao for possivel inferir
 - Layout invalido (diferente de `comparativo` ou `conceitos`)
 - `## lista:` sem itens `- ...`
 - `## conceito:` sem descricao
@@ -92,6 +118,7 @@ O script falha com mensagem clara quando encontra:
 
 - `criar_slides_agentic_ai.py`: parser Markdown + renderizacao dos slides
 - `slides.md`: arquivo de entrada com o conteudo da apresentacao
+- `theme.premium.json`: exemplo de tema para modo premium
 
 ## Observacao
 

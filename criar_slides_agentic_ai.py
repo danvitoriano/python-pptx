@@ -1,6 +1,8 @@
 import argparse
+import json
 import re
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 from pptx import Presentation
@@ -14,8 +16,53 @@ COR_TITULO = RGBColor(255, 255, 255)
 COR_TEXTO = RGBColor(204, 204, 204)
 COR_DESTAQUE = RGBColor(102, 179, 255)
 FONTE_PRINCIPAL = "Segoe UI"
+FONTE_TITULO = "Segoe UI"
+FONTE_SUBTITULO = "Segoe UI"
 
 LAYOUTS_SUPORTADOS = {"comparativo", "conceitos"}
+
+THEME_DEFAULT = {
+    "profile": "default",
+    "slide": {
+        "ratio": "16:9",
+        "width_in": 13.333,
+        "height_in": 7.5,
+    },
+    "colors": {
+        "background": "#000000",
+        "title": "#FFFFFF",
+        "body": "#CCCCCC",
+        "accent": "#66B3FF",
+        "card_bg": "#1A1A1A",
+        "card_border": "#646464",
+    },
+    "fonts": {
+        "title_family": "Segoe UI",
+        "subtitle_family": "Segoe UI",
+        "body_family": "Segoe UI",
+        "title_size_max": 40,
+        "title_size_mid": 32,
+        "title_size_small": 28,
+        "title_size_min": 24,
+        "subtitle_size": 24,
+        "body_size": 14,
+    },
+    "layout": {
+        "margin_x_in": 0.8,
+        "title_top_in": 0.5,
+        "subtitle_top_in": 1.3,
+        "content_top_in": 2.0,
+        "column_gap_in": 0.5,
+        "bottom_block_top_in": 4.8,
+        "bottom_block_height_in": 2.0,
+    },
+    "parsing": {
+        "strip_page_prefix": True,
+        "ignore_sections": ["Notas Estruturais para Python-PPTX"],
+    },
+}
+
+THEME_ACTIVE = deepcopy(THEME_DEFAULT)
 
 
 def _ajustar_text_frame(tf):
@@ -24,14 +71,15 @@ def _ajustar_text_frame(tf):
 
 
 def _tamanho_titulo(texto):
+    fonts = THEME_ACTIVE["fonts"]
     tamanho = len(texto)
     if tamanho > 85:
-        return Pt(24)
+        return Pt(fonts["title_size_min"])
     if tamanho > 65:
-        return Pt(28)
+        return Pt(fonts["title_size_small"])
     if tamanho > 45:
-        return Pt(32)
-    return Pt(40)
+        return Pt(fonts["title_size_mid"])
+    return Pt(fonts["title_size_max"])
 
 
 def _decorar_titulo(texto):
@@ -53,6 +101,76 @@ def _decorar_titulo(texto):
     return base
 
 
+def _merge_dict(base, override):
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _merge_dict(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
+def _parse_hex_color(valor):
+    valor = valor.strip().lstrip("#")
+    if len(valor) != 6:
+        raise ValueError(f"Cor invalida '{valor}'. Use formato #RRGGBB.")
+    return RGBColor(int(valor[0:2], 16), int(valor[2:4], 16), int(valor[4:6], 16))
+
+
+def _load_theme(theme_path=None, profile=None):
+    tema = deepcopy(THEME_DEFAULT)
+    if theme_path:
+        path = Path(theme_path)
+        raw = path.read_text(encoding="utf-8")
+        try:
+            dados = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Arquivo de tema invalido ({path}): {exc}") from exc
+        _merge_dict(tema, dados)
+    if profile:
+        tema["profile"] = profile
+        if profile == "premium":
+            _merge_dict(
+                tema,
+                {
+                    "fonts": {
+                        "title_size_max": 44,
+                        "title_size_mid": 36,
+                        "title_size_small": 30,
+                        "title_size_min": 24,
+                        "subtitle_size": 24,
+                        "body_size": 13,
+                    },
+                    "layout": {
+                        "column_gap_in": 0.6,
+                        "content_top_in": 1.95,
+                        "bottom_block_top_in": 4.75,
+                    },
+                },
+            )
+    return tema
+
+
+def _apply_theme(tema):
+    global THEME_ACTIVE, COR_FUNDO, COR_TITULO, COR_TEXTO, COR_DESTAQUE
+    global FONTE_PRINCIPAL, FONTE_TITULO, FONTE_SUBTITULO
+
+    THEME_ACTIVE = tema
+    COR_FUNDO = _parse_hex_color(tema["colors"]["background"])
+    COR_TITULO = _parse_hex_color(tema["colors"]["title"])
+    COR_TEXTO = _parse_hex_color(tema["colors"]["body"])
+    COR_DESTAQUE = _parse_hex_color(tema["colors"]["accent"])
+    FONTE_TITULO = tema["fonts"]["title_family"]
+    FONTE_SUBTITULO = tema["fonts"]["subtitle_family"]
+    FONTE_PRINCIPAL = tema["fonts"]["body_family"]
+
+
+def _should_ignore_section(title):
+    ignores = THEME_ACTIVE.get("parsing", {}).get("ignore_sections", [])
+    alvo = (title or "").strip().lower()
+    return any(alvo == str(item).strip().lower() for item in ignores)
+
+
 def configurar_slide(slide):
     """Aplica fundo preto ao slide."""
     background = slide.background
@@ -61,16 +179,19 @@ def configurar_slide(slide):
     fill.fore_color.rgb = COR_FUNDO
 
 
-def adicionar_titulo(slide, texto, top=Inches(0.5)):
+def adicionar_titulo(slide, texto, top=None):
     """Adiciona titulo principal."""
-    textbox = slide.shapes.add_textbox(Inches(0.8), top, Inches(11.8), Inches(1.2))
+    mx = THEME_ACTIVE["layout"]["margin_x_in"]
+    largura = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
+    top = THEME_ACTIVE["layout"]["title_top_in"] if top is None else top
+    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(1.2))
     tf = textbox.text_frame
     tf.clear()
     _ajustar_text_frame(tf)
     p = tf.paragraphs[0]
     run = p.add_run()
     run.text = texto
-    run.font.name = FONTE_PRINCIPAL
+    run.font.name = FONTE_TITULO
     run.font.size = _tamanho_titulo(texto)
     run.font.bold = True
     run.font.color.rgb = COR_TITULO
@@ -78,17 +199,20 @@ def adicionar_titulo(slide, texto, top=Inches(0.5)):
     return textbox
 
 
-def adicionar_subtitulo(slide, texto, top=Inches(1.3)):
+def adicionar_subtitulo(slide, texto, top=None):
     """Adiciona subtitulo."""
-    textbox = slide.shapes.add_textbox(Inches(0.8), top, Inches(11.8), Inches(0.9))
+    mx = THEME_ACTIVE["layout"]["margin_x_in"]
+    largura = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
+    top = THEME_ACTIVE["layout"]["subtitle_top_in"] if top is None else top
+    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(0.9))
     tf = textbox.text_frame
     tf.clear()
     _ajustar_text_frame(tf)
     p = tf.paragraphs[0]
     run = p.add_run()
     run.text = texto
-    run.font.name = FONTE_PRINCIPAL
-    run.font.size = Pt(24)
+    run.font.name = FONTE_SUBTITULO
+    run.font.size = Pt(THEME_ACTIVE["fonts"]["subtitle_size"])
     run.font.color.rgb = COR_TEXTO
     p.alignment = PP_ALIGN.LEFT
     return textbox
@@ -105,7 +229,7 @@ def adicionar_lista(slide, itens, left, top, width, height, titulo=None, fonte_t
         p = tf.paragraphs[0]
         run = p.add_run()
         run.text = _decorar_titulo(titulo)
-        run.font.name = FONTE_PRINCIPAL
+        run.font.name = FONTE_TITULO
         run.font.size = Pt(fonte_titulo)
         run.font.bold = True
         run.font.color.rgb = COR_TITULO
@@ -126,8 +250,8 @@ def adicionar_caixa_conceito(slide, titulo, descricao, left, top, width, height)
     """Adiciona caixa de conceito com titulo e descricao."""
     shape = slide.shapes.add_shape(1, left, top, width, height)
     shape.fill.solid()
-    shape.fill.fore_color.rgb = RGBColor(26, 26, 26)
-    shape.line.color.rgb = RGBColor(100, 100, 100)
+    shape.fill.fore_color.rgb = _parse_hex_color(THEME_ACTIVE["colors"]["card_bg"])
+    shape.line.color.rgb = _parse_hex_color(THEME_ACTIVE["colors"]["card_border"])
     shape.line.width = Pt(1)
 
     tf = shape.text_frame
@@ -136,7 +260,7 @@ def adicionar_caixa_conceito(slide, titulo, descricao, left, top, width, height)
     p = tf.paragraphs[0]
     run = p.add_run()
     run.text = _decorar_titulo(titulo)
-    run.font.name = FONTE_PRINCIPAL
+    run.font.name = FONTE_TITULO
     run.font.size = Pt(18)
     run.font.bold = True
     run.font.color.rgb = COR_DESTAQUE
@@ -146,7 +270,7 @@ def adicionar_caixa_conceito(slide, titulo, descricao, left, top, width, height)
     run = p.add_run()
     run.text = descricao
     run.font.name = FONTE_PRINCIPAL
-    run.font.size = Pt(14)
+    run.font.size = Pt(THEME_ACTIVE["fonts"]["body_size"])
     run.font.color.rgb = COR_TEXTO
     p.alignment = PP_ALIGN.LEFT
 
@@ -164,6 +288,8 @@ def _remover_prefixo_pagina(texto):
     """
     Remove prefixos como 'Pagina 2:' ou 'Página 2:' para nao poluir titulos.
     """
+    if not THEME_ACTIVE.get("parsing", {}).get("strip_page_prefix", True):
+        return texto.strip()
     return re.sub(r"^\s*p[aá]gina\s*\d+\s*:\s*", "", texto, flags=re.IGNORECASE).strip()
 
 
@@ -211,8 +337,12 @@ def _parse_slide_block(block, idx):
     else:
         raise ValueError(f"Slide {idx}: o titulo deve iniciar com '# ' ou '## '.")
 
+    titulo_limpo = _remover_prefixo_pagina(_limpar_markdown_inline(titulo))
+    if _should_ignore_section(titulo_limpo):
+        return None
+
     slide = {
-        "title": _remover_prefixo_pagina(_limpar_markdown_inline(titulo)),
+        "title": titulo_limpo,
         "subtitle": "",
         "layout": "",
         "listas": [],
@@ -228,6 +358,7 @@ def _parse_slide_block(block, idx):
     subtitulo_h2_idx = h2_indices[0] if len(h2_indices) == 1 else None
     secoes_genericas = []
     secao_atual = None
+    ignorando_secao = False
 
     i = 1
     dentro_codigo = False
@@ -291,6 +422,12 @@ def _parse_slide_block(block, idx):
         m_secao = re.match(r"^(##|###|####)\s+(.+)$", linha)
         if m_secao:
             titulo_secao = _remover_prefixo_pagina(_limpar_markdown_inline(m_secao.group(2).strip()))
+            if _should_ignore_section(titulo_secao):
+                ignorando_secao = True
+                secao_atual = None
+                i += 1
+                continue
+            ignorando_secao = False
             if ":" in titulo_secao:
                 prefixo, resto = titulo_secao.split(":", 1)
                 if prefixo.strip().lower() in {
@@ -305,6 +442,10 @@ def _parse_slide_block(block, idx):
                     titulo_secao = resto.strip()
             secao_atual = {"titulo": titulo_secao, "itens": []}
             secoes_genericas.append(secao_atual)
+            i += 1
+            continue
+
+        if ignorando_secao:
             i += 1
             continue
 
@@ -391,19 +532,29 @@ def carregar_slides_markdown(caminho_markdown):
 
 
 def render_slide_comparativo(slide, data):
+    layout = THEME_ACTIVE["layout"]
+    slide_cfg = THEME_ACTIVE["slide"]
+    mx = layout["margin_x_in"]
+    gap = layout["column_gap_in"]
+    content_top = layout["content_top_in"]
+    bottom_top = layout["bottom_block_top_in"]
+    bottom_height = layout["bottom_block_height_in"]
+    usable_width = slide_cfg["width_in"] - (mx * 2)
+    col_width = (usable_width - gap) / 2
+
     posicoes = [
-        (Inches(0.8), Inches(2.0), Inches(5.6), Inches(2.4), 20, 14),
-        (Inches(6.9), Inches(2.0), Inches(5.6), Inches(2.4), 20, 14),
-        (Inches(0.8), Inches(4.9), Inches(11.8), Inches(2.0), 18, 13),
+        (Inches(mx), Inches(content_top), Inches(col_width), Inches(2.4), 20, 14),
+        (Inches(mx + col_width + gap), Inches(content_top), Inches(col_width), Inches(2.4), 20, 14),
+        (Inches(mx), Inches(bottom_top), Inches(usable_width), Inches(bottom_height), 18, 13),
     ]
 
     for idx, secao in enumerate(data["listas"]):
         if idx < len(posicoes):
             left, top, width, height, ft_titulo, ft_item = posicoes[idx]
         else:
-            left = Inches(0.8)
-            top = Inches(5.0 + (idx - 2) * 1.2)
-            width = Inches(11.8)
+            left = Inches(mx)
+            top = Inches(bottom_top + 0.2 + (idx - 2) * 1.2)
+            width = Inches(usable_width)
             height = Inches(1.5)
             ft_titulo = 16
             ft_item = 12
@@ -422,18 +573,27 @@ def render_slide_comparativo(slide, data):
 
 
 def render_slide_conceitos(slide, data):
+    layout = THEME_ACTIVE["layout"]
+    slide_cfg = THEME_ACTIVE["slide"]
+    mx = layout["margin_x_in"]
+    gap = layout["column_gap_in"]
+    content_top = layout["content_top_in"] - 0.1
+    bottom_top = layout["bottom_block_top_in"]
+    usable_width = slide_cfg["width_in"] - (mx * 2)
+    col_width = (usable_width - gap) / 2
+
     posicoes_conceitos = [
-        (Inches(0.8), Inches(1.9), Inches(5.1), Inches(1.9)),
-        (Inches(7.0), Inches(1.9), Inches(5.1), Inches(1.9)),
+        (Inches(mx), Inches(content_top), Inches(col_width), Inches(1.9)),
+        (Inches(mx + col_width + gap), Inches(content_top), Inches(col_width), Inches(1.9)),
     ]
 
     for idx, conceito in enumerate(data["conceitos"]):
         if idx < len(posicoes_conceitos):
             left, top, width, height = posicoes_conceitos[idx]
         else:
-            left = Inches(0.8)
+            left = Inches(mx)
             top = Inches(3.9 + (idx - 2) * 1.8)
-            width = Inches(8.5)
+            width = Inches(usable_width)
             height = Inches(1.6)
         adicionar_caixa_conceito(
             slide,
@@ -449,9 +609,9 @@ def render_slide_conceitos(slide, data):
         adicionar_lista(
             slide,
             itens=[f"{item}" for secao in data["listas"] for item in secao["itens"]],
-            left=Inches(0.8),
-            top=Inches(4.8),
-            width=Inches(11.8),
+            left=Inches(mx),
+            top=Inches(bottom_top),
+            width=Inches(usable_width),
             height=Inches(2.2),
             titulo="Anatomia do Agente",
             fonte_titulo=18,
@@ -461,8 +621,8 @@ def render_slide_conceitos(slide, data):
 
 def renderizar_apresentacao(slides_data):
     prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
+    prs.slide_width = Inches(THEME_ACTIVE["slide"]["width_in"])
+    prs.slide_height = Inches(THEME_ACTIVE["slide"]["height_in"])
     for data in slides_data:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         configurar_slide(slide)
@@ -492,12 +652,29 @@ def parse_args():
         default="Slides_Agentic_AI.pptx",
         help="Arquivo .pptx de saida (padrao: Slides_Agentic_AI.pptx).",
     )
+    parser.add_argument(
+        "--theme",
+        default=None,
+        help="Arquivo JSON de tema visual (opcional).",
+    )
+    parser.add_argument(
+        "--profile",
+        default=None,
+        choices=["default", "premium"],
+        help="Perfil visual predefinido (opcional).",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     try:
+        if args.theme and not Path(args.theme).exists():
+            raise ValueError(f"arquivo de tema nao encontrado: '{args.theme}'")
+        if not Path(args.input).exists():
+            raise FileNotFoundError(args.input)
+        tema = _load_theme(args.theme, args.profile)
+        _apply_theme(tema)
         slides_data = carregar_slides_markdown(args.input)
         apresentacao = renderizar_apresentacao(slides_data)
         apresentacao.save(args.output)
