@@ -161,7 +161,7 @@ def _adicionar_titulo_max(slide, texto, top=None):
     mx = THEME_ACTIVE["layout"]["margin_x_in"]
     largura = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
     top = THEME_ACTIVE["layout"]["title_top_in"] if top is None else top
-    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(1.9))
+    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(2.15))
     tf = textbox.text_frame
     tf.clear()
     _ajustar_text_frame(tf)
@@ -246,12 +246,12 @@ def _load_theme(theme_path=None, profile=None):
                 tema,
                 {
                     "fonts": {
-                        "title_size_max": 58,
-                        "title_size_mid": 50,
-                        "title_size_small": 42,
-                        "title_size_min": 34,
-                        "subtitle_size": 26,
-                        "body_size": 22,
+                        "title_size_max": 40,
+                        "title_size_mid": 35,
+                        "title_size_small": 29,
+                        "title_size_min": 24,
+                        "subtitle_size": 20,
+                        "body_size": 15,
                     },
                     "colors": {
                         "body": "#C9C9C9",
@@ -265,7 +265,7 @@ def _load_theme(theme_path=None, profile=None):
                         "subtitle_top_in": 1.45,
                         "content_top_in": 2.0,
                         "column_gap_in": 0.45,
-                        "max_content_top_in": 2.25,
+                        "max_content_top_in": 2.85,
                         "max_left_title_width_in": 3.3,
                         "max_left_content_width_in": 8.3,
                     },
@@ -883,7 +883,7 @@ def render_slide_title_left_text_right(slide, data):
         Inches(top),
         Inches(right_width),
         Inches(4.7),
-        size=max(THEME_ACTIVE["fonts"]["body_size"], 20),
+        size=max(THEME_ACTIVE["fonts"]["body_size"], 18),
     )
 
 
@@ -910,7 +910,7 @@ def render_slide_title_top_bullets(slide, data):
             clean_items.append(val)
 
         lines = [f"• {item}" for item in clean_items[:3]]
-        box = slide.shapes.add_textbox(Inches(mx), Inches(y), Inches(width), Inches(1.8))
+        box = slide.shapes.add_textbox(Inches(mx), Inches(y), Inches(width), Inches(1.55))
         tf = box.text_frame
         tf.clear()
         _ajustar_text_frame(tf)
@@ -918,7 +918,7 @@ def render_slide_title_top_bullets(slide, data):
         run = p.add_run()
         run.text = titulo
         run.font.name = FONTE_TITULO
-        run.font.size = Pt(28)
+        run.font.size = Pt(20)
         run.font.color.rgb = COR_TITULO
         run.font.bold = False
 
@@ -927,10 +927,10 @@ def render_slide_title_top_bullets(slide, data):
             r2 = p2.add_run()
             r2.text = line
             r2.font.name = FONTE_PRINCIPAL
-            r2.font.size = Pt(20)
+            r2.font.size = Pt(15)
             r2.font.color.rgb = COR_TEXTO
 
-        y += 1.7
+        y += 1.45
 
 
 def render_slide_title_top_grid_2x2(slide, data):
@@ -949,9 +949,9 @@ def render_slide_title_top_grid_2x2(slide, data):
         header = f"{idx + 1:02d}"
         body_title = secao.get("titulo", "")
         body_text = " ".join(secao.get("itens", [])[:2])
-        _add_body_lines(slide, [header], Inches(left), Inches(top_pos), Inches(col_width), Inches(0.35), size=24)
-        _add_body_lines(slide, [body_title], Inches(left), Inches(top_pos + 0.35), Inches(col_width), Inches(0.55), size=26)
-        _add_body_lines(slide, [body_text], Inches(left), Inches(top_pos + 0.95), Inches(col_width), Inches(0.95), size=20)
+        _add_body_lines(slide, [header], Inches(left), Inches(top_pos), Inches(col_width), Inches(0.35), size=16)
+        _add_body_lines(slide, [body_title], Inches(left), Inches(top_pos + 0.35), Inches(col_width), Inches(0.55), size=18)
+        _add_body_lines(slide, [body_text], Inches(left), Inches(top_pos + 0.9), Inches(col_width), Inches(0.95), size=15)
 
 
 def render_slide_title_top_text_block(slide, data):
@@ -971,7 +971,7 @@ def render_slide_title_top_text_block(slide, data):
         Inches(top),
         Inches(width * 0.76),
         Inches(3.7),
-        size=22,
+        size=15,
     )
 
 

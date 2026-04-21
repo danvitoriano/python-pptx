@@ -9,12 +9,12 @@
     "title_family": "Gotham HTF",
     "subtitle_family": "Roboto",
     "body_family": "Roboto",
-    "title_size_max": 58,
-    "title_size_mid": 50,
-    "title_size_small": 42,
-    "title_size_min": 34,
-    "subtitle_size": 26,
-    "body_size": 22
+    "title_size_max": 40,
+    "title_size_mid": 35,
+    "title_size_small": 29,
+    "title_size_min": 24,
+    "subtitle_size": 20,
+    "body_size": 15
   },
   "colors": {
     "background": "#000000",
@@ -30,7 +30,7 @@
     "subtitle_top_in": 1.45,
     "content_top_in": 2.0,
     "column_gap_in": 0.45,
-    "max_content_top_in": 2.25,
+    "max_content_top_in": 2.85,
     "max_left_title_width_in": 3.3,
     "max_left_content_width_in": 8.3,
     "bottom_block_top_in": 4.8,
