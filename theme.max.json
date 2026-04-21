@@ -1,0 +1,118 @@
+{
+  "profile": "max",
+  "slide": {
+    "ratio": "16:9",
+    "width_in": 13.333,
+    "height_in": 7.5
+  },
+  "fonts": {
+    "title_family": "Gotham HTF",
+    "subtitle_family": "Roboto",
+    "body_family": "Roboto",
+    "title_size_max": 40,
+    "title_size_mid": 35,
+    "title_size_small": 29,
+    "title_size_min": 24,
+    "subtitle_size": 20,
+    "body_size": 15
+  },
+  "colors": {
+    "background": "#000000",
+    "title": "#FFFFFF",
+    "body": "#C9C9C9",
+    "accent": "#FF2E93",
+    "card_bg": "#000000",
+    "card_border": "#000000"
+  },
+  "layout": {
+    "margin_x_in": 0.85,
+    "title_top_in": 0.45,
+    "subtitle_top_in": 1.45,
+    "content_top_in": 2.0,
+    "column_gap_in": 0.45,
+    "max_content_top_in": 2.85,
+    "max_left_title_width_in": 3.3,
+    "max_left_content_width_in": 8.3,
+    "bottom_block_top_in": 4.8,
+    "bottom_block_height_in": 2.0
+  },
+  "parsing": {
+    "strip_page_prefix": true,
+    "instruction_labels": [
+      "Citação Importante",
+      "Mensagem Principal"
+    ],
+    "ignore_sections": [
+      "Notas Estruturais para Python-PPTX"
+    ]
+  },
+  "title": {
+    "force_uppercase": true,
+    "accent_words": [
+      "DESIGN VISUAL",
+      "SLIDE EM MAIUSCULO",
+      "SLIDE EM MAIUSCULA",
+      "RESULTADOS",
+      "PRATICAS",
+      "REGRAS"
+    ]
+  },
+  "max": {
+    "background": {
+      "image_path": "bg-default.png",
+      "apply_after_first_slide": true,
+      "cover_first_slide_with_image": false
+    },
+    "title": {
+      "box_height_in": 2.15,
+      "line_spacing": 1.0,
+      "accent_line_spacing": 1.0,
+      "prefer_two_lines": true,
+      "first_line_max_chars": 24
+    },
+    "body": {
+      "line_spacing_text": 1.22,
+      "line_spacing_bullets": 1.14,
+      "space_before_bullet_pt": 2
+    },
+    "density": {
+      "left_right_max_lines": 12,
+      "left_right_max_sections": 6,
+      "bullets_max_blocks": 3,
+      "bullets_max_items_per_block": 3,
+      "grid_max_cards": 4,
+      "grid_max_items_per_card": 2,
+      "text_block_max_words": 110
+    },
+    "layouts": {
+      "title_left_text_right": {
+        "content_top_in": 2.85,
+        "content_height_in": 4.7,
+        "left_title_width_in": 3.3,
+        "right_min_width_in": 3.0,
+        "body_size": 18
+      },
+      "title_top_bullets": {
+        "content_top_in": 2.85,
+        "block_height_in": 1.55,
+        "block_gap_in": 1.45,
+        "heading_size": 20,
+        "bullet_size": 15
+      },
+      "title_top_grid_2x2": {
+        "content_top_in": 2.85,
+        "row_height_in": 2.05,
+        "header_size": 16,
+        "title_size": 18,
+        "text_size": 15
+      },
+      "title_top_text_block": {
+        "content_top_in": 2.85,
+        "left_offset_ratio": 0.2,
+        "width_ratio": 0.76,
+        "height_in": 3.7,
+        "body_size": 15
+      }
+    }
+  }
+}

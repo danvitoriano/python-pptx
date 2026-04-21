@@ -1,0 +1,42 @@
+{
+  "profile": "premium",
+  "slide": {
+    "ratio": "16:9",
+    "width_in": 13.333,
+    "height_in": 7.5
+  },
+  "fonts": {
+    "title_family": "Gotham HTF",
+    "subtitle_family": "Roboto",
+    "body_family": "Roboto",
+    "title_size_max": 52,
+    "title_size_mid": 40,
+    "title_size_small": 34,
+    "title_size_min": 26,
+    "subtitle_size": 26,
+    "body_size": 13
+  },
+  "colors": {
+    "background": "#000000",
+    "title": "#FFFFFF",
+    "body": "#B3B3B3",
+    "accent": "#FF3399",
+    "card_bg": "#1A1A1A",
+    "card_border": "#646464"
+  },
+  "layout": {
+    "margin_x_in": 0.8,
+    "title_top_in": 0.45,
+    "subtitle_top_in": 1.25,
+    "content_top_in": 1.95,
+    "column_gap_in": 0.6,
+    "bottom_block_top_in": 4.75,
+    "bottom_block_height_in": 2.0
+  },
+  "parsing": {
+    "strip_page_prefix": true,
+    "ignore_sections": [
+      "Notas Estruturais para Python-PPTX"
+    ]
+  }
+}
