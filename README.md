@@ -121,6 +121,18 @@ Layouts extras do perfil `max`:
 - `title_top_grid_2x2`
 - `title_top_text_block`
 
+Knobs especificos do perfil `max` (em `theme.max.json`):
+
+- `title.force_uppercase`: forca titulo em maiusculo
+- `title.accent_words`: palavras/frases que vao para a linha de destaque (magenta)
+- `max.title`: composicao do titulo (`box_height_in`, `line_spacing`, `prefer_two_lines`, `first_line_max_chars`)
+- `max.body`: ritmo tipografico (`line_spacing_text`, `line_spacing_bullets`, `space_before_bullet_pt`)
+- `max.density`: limites de conteudo por layout (blocos, bullets, cards e palavras maximas)
+- `max.layouts.title_left_text_right`: geometria e tamanho do bloco de texto lateral
+- `max.layouts.title_top_bullets`: altura/espacamento de blocos e tamanhos de heading/bullet
+- `max.layouts.title_top_grid_2x2`: altura de linha, tamanhos de header/titulo/texto
+- `max.layouts.title_top_text_block`: largura, offset e altura do bloco corrido
+
 ## Erros comuns de parsing
 
 O script falha com mensagem clara quando encontra:

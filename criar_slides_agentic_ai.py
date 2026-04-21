@@ -83,6 +83,59 @@ THEME_DEFAULT = {
         ],
         "force_uppercase": False,
     },
+    "max": {
+        "title": {
+            "box_height_in": 2.15,
+            "line_spacing": 1.0,
+            "accent_line_spacing": 1.0,
+            "prefer_two_lines": True,
+            "first_line_max_chars": 24,
+        },
+        "body": {
+            "line_spacing_text": 1.22,
+            "line_spacing_bullets": 1.14,
+            "space_before_bullet_pt": 2,
+        },
+        "density": {
+            "left_right_max_lines": 12,
+            "left_right_max_sections": 6,
+            "bullets_max_blocks": 3,
+            "bullets_max_items_per_block": 3,
+            "grid_max_cards": 4,
+            "grid_max_items_per_card": 2,
+            "text_block_max_words": 110,
+        },
+        "layouts": {
+            "title_left_text_right": {
+                "content_top_in": 2.85,
+                "content_height_in": 4.7,
+                "left_title_width_in": 3.3,
+                "right_min_width_in": 3.0,
+                "body_size": 18,
+            },
+            "title_top_bullets": {
+                "content_top_in": 2.85,
+                "block_height_in": 1.55,
+                "block_gap_in": 1.45,
+                "heading_size": 20,
+                "bullet_size": 15,
+            },
+            "title_top_grid_2x2": {
+                "content_top_in": 2.85,
+                "row_height_in": 2.05,
+                "header_size": 16,
+                "title_size": 18,
+                "text_size": 15,
+            },
+            "title_top_text_block": {
+                "content_top_in": 2.85,
+                "left_offset_ratio": 0.2,
+                "width_ratio": 0.76,
+                "height_in": 3.7,
+                "body_size": 15,
+            },
+        },
+    },
 }
 
 THEME_ACTIVE = deepcopy(THEME_DEFAULT)
@@ -128,6 +181,7 @@ def _split_title_accent(texto):
     clean = (texto or "").strip()
     upper = clean.upper()
     accent_words = THEME_ACTIVE.get("title", {}).get("accent_words", [])
+    title_cfg = _theme_get("max.title", {})
     for item in accent_words:
         up_item = str(item).upper().strip()
         pos = upper.find(up_item)
@@ -146,6 +200,17 @@ def _split_title_accent(texto):
         right = clean[pos + len(marker) :].strip()
         return left, f"DE {right}", ""
 
+    if title_cfg.get("prefer_two_lines", True):
+        max_chars = int(title_cfg.get("first_line_max_chars", 24))
+        words = clean.split()
+        line1 = []
+        line2 = []
+        for word in words:
+            target = line1 if len(" ".join(line1 + [word])) <= max_chars else line2
+            target.append(word)
+        if line1 and line2:
+            return " ".join(line1), " ".join(line2), ""
+
     return clean, "", ""
 
 
@@ -156,12 +221,41 @@ def _formatar_titulo_slide(texto):
     return value
 
 
+def _theme_get(path, default=None):
+    cur = THEME_ACTIVE
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return default
+        cur = cur[part]
+    return cur
+
+
+def _dedupe_preserve(items):
+    seen = set()
+    out = []
+    for item in items:
+        key = _limpar_markdown_inline(str(item)).strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(str(item).strip())
+    return out
+
+
+def _truncate_words(texto, max_words):
+    parts = re.findall(r"\S+", texto or "")
+    if len(parts) <= max_words:
+        return texto
+    return " ".join(parts[:max_words]).rstrip(".,;:") + "..."
+
+
 def _adicionar_titulo_max(slide, texto, top=None):
     texto = _formatar_titulo_slide(texto)
     mx = THEME_ACTIVE["layout"]["margin_x_in"]
     largura = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
     top = THEME_ACTIVE["layout"]["title_top_in"] if top is None else top
-    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(2.15))
+    title_box_h = _theme_get("max.title.box_height_in", 2.15)
+    textbox = slide.shapes.add_textbox(Inches(mx), Inches(top), Inches(largura), Inches(title_box_h))
     tf = textbox.text_frame
     tf.clear()
     _ajustar_text_frame(tf)
@@ -175,6 +269,7 @@ def _adicionar_titulo_max(slide, texto, top=None):
     run.font.size = _tamanho_titulo(texto)
     run.font.bold = False
     run.font.color.rgb = COR_TITULO
+    p.line_spacing = _theme_get("max.title.line_spacing", 1.0)
 
     if destaque:
         p2 = tf.add_paragraph()
@@ -184,6 +279,7 @@ def _adicionar_titulo_max(slide, texto, top=None):
         run2.font.size = _tamanho_titulo(texto)
         run2.font.bold = False
         run2.font.color.rgb = COR_DESTAQUE
+        p2.line_spacing = _theme_get("max.title.accent_line_spacing", 1.0)
         if sufixo:
             run3 = p2.add_run()
             run3.text = f" {sufixo}"
@@ -279,6 +375,29 @@ def _load_theme(theme_path=None, profile=None):
                             "REGRAS",
                         ],
                         "force_uppercase": True,
+                    },
+                    "max": {
+                        "title": {
+                            "box_height_in": 2.15,
+                            "line_spacing": 1.0,
+                            "accent_line_spacing": 1.0,
+                            "prefer_two_lines": True,
+                            "first_line_max_chars": 24,
+                        },
+                        "body": {
+                            "line_spacing_text": 1.22,
+                            "line_spacing_bullets": 1.14,
+                            "space_before_bullet_pt": 2,
+                        },
+                        "density": {
+                            "left_right_max_lines": 12,
+                            "left_right_max_sections": 6,
+                            "bullets_max_blocks": 3,
+                            "bullets_max_items_per_block": 3,
+                            "grid_max_cards": 4,
+                            "grid_max_items_per_card": 2,
+                            "text_block_max_words": 110,
+                        },
                     },
                 },
             )
@@ -840,7 +959,7 @@ def render_slide_conceitos(slide, data):
         )
 
 
-def _add_body_lines(slide, lines, left, top, width, height, size=None):
+def _add_body_lines(slide, lines, left, top, width, height, size=None, line_spacing=None, space_before_pt=0):
     size = size or THEME_ACTIVE["fonts"]["body_size"]
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
@@ -850,52 +969,78 @@ def _add_body_lines(slide, lines, left, top, width, height, size=None):
     for line in lines:
         if not line:
             continue
-        p = tf.paragraphs[0] if first else tf.add_paragraph()
+        is_first = first
+        p = tf.paragraphs[0] if is_first else tf.add_paragraph()
         first = False
         run = p.add_run()
         run.text = line
         run.font.name = FONTE_PRINCIPAL
         run.font.size = Pt(size)
         run.font.color.rgb = COR_TEXTO
+        if line_spacing is not None:
+            p.line_spacing = line_spacing
+        if not is_first and space_before_pt:
+            p.space_before = Pt(space_before_pt)
     return box
 
 
 def render_slide_title_left_text_right(slide, data):
     layout = THEME_ACTIVE["layout"]
     slide_cfg = THEME_ACTIVE["slide"]
+    cfg = _theme_get("max.layouts.title_left_text_right", {})
+    density = _theme_get("max.density", {})
+    body = _theme_get("max.body", {})
+
     mx = layout["margin_x_in"]
-    top = layout.get("max_content_top_in", 2.2)
-    left_width = layout.get("max_left_title_width_in", 3.2)
+    top = cfg.get("content_top_in", layout.get("max_content_top_in", 2.2))
+    left_width = cfg.get("left_title_width_in", layout.get("max_left_title_width_in", 3.2))
     usable_width = slide_cfg["width_in"] - (mx * 2)
     gap = layout["column_gap_in"]
     right_x = mx + left_width + gap
-    right_width = max(usable_width - left_width - gap, 3.0)
+    right_width = max(usable_width - left_width - gap, cfg.get("right_min_width_in", 3.0))
+
+    max_sections = density.get("left_right_max_sections", 6)
+    max_lines = density.get("left_right_max_lines", 12)
+    sections = data["listas"][:max_sections]
     lines = []
-    for secao in data["listas"]:
+    for secao in sections:
+        section_lines = []
         if secao.get("titulo"):
-            lines.append(secao["titulo"])
-        lines.extend(secao.get("itens", []))
+            section_lines.append(secao["titulo"])
+        section_lines.extend(secao.get("itens", []))
+        section_lines = _dedupe_preserve(section_lines)
+        lines.extend(section_lines)
         lines.append("")
+    lines = lines[:max_lines]
+
     _add_body_lines(
         slide,
-        lines[:12],
+        lines,
         Inches(right_x),
         Inches(top),
         Inches(right_width),
-        Inches(4.7),
-        size=max(THEME_ACTIVE["fonts"]["body_size"], 18),
+        Inches(cfg.get("content_height_in", 4.7)),
+        size=max(THEME_ACTIVE["fonts"]["body_size"], cfg.get("body_size", 18)),
+        line_spacing=body.get("line_spacing_text", 1.22),
+        space_before_pt=body.get("space_before_bullet_pt", 2),
     )
 
 
 def render_slide_title_top_bullets(slide, data):
-    mx = THEME_ACTIVE["layout"]["margin_x_in"]
-    top = THEME_ACTIVE["layout"].get("max_content_top_in", 2.2)
+    layout = THEME_ACTIVE["layout"]
+    cfg = _theme_get("max.layouts.title_top_bullets", {})
+    density = _theme_get("max.density", {})
+    body = _theme_get("max.body", {})
+
+    mx = layout["margin_x_in"]
+    top = cfg.get("content_top_in", layout.get("max_content_top_in", 2.2))
     width = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
     y = top
-    max_blocos = 3
+    max_blocos = density.get("bullets_max_blocks", 3)
+    max_itens = density.get("bullets_max_items_per_block", 3)
     for secao in data["listas"][:max_blocos]:
         titulo = secao.get("titulo", "")
-        itens = secao.get("itens", [])
+        itens = _dedupe_preserve(secao.get("itens", []))
         clean_items = []
         titulo_norm = _limpar_markdown_inline(titulo).strip().lower().rstrip(":")
         for item in itens:
@@ -909,8 +1054,8 @@ def render_slide_title_top_bullets(slide, data):
                 continue
             clean_items.append(val)
 
-        lines = [f"• {item}" for item in clean_items[:3]]
-        box = slide.shapes.add_textbox(Inches(mx), Inches(y), Inches(width), Inches(1.55))
+        lines = [f"• {item}" for item in clean_items[:max_itens]]
+        box = slide.shapes.add_textbox(Inches(mx), Inches(y), Inches(width), Inches(cfg.get("block_height_in", 1.55)))
         tf = box.text_frame
         tf.clear()
         _ajustar_text_frame(tf)
@@ -918,29 +1063,39 @@ def render_slide_title_top_bullets(slide, data):
         run = p.add_run()
         run.text = titulo
         run.font.name = FONTE_TITULO
-        run.font.size = Pt(20)
+        run.font.size = Pt(cfg.get("heading_size", 20))
         run.font.color.rgb = COR_TITULO
         run.font.bold = False
+        p.line_spacing = body.get("line_spacing_text", 1.22)
 
         for line in lines:
             p2 = tf.add_paragraph()
             r2 = p2.add_run()
             r2.text = line
             r2.font.name = FONTE_PRINCIPAL
-            r2.font.size = Pt(15)
+            r2.font.size = Pt(cfg.get("bullet_size", 15))
             r2.font.color.rgb = COR_TEXTO
+            p2.line_spacing = body.get("line_spacing_bullets", 1.14)
+            p2.space_before = Pt(body.get("space_before_bullet_pt", 2))
 
-        y += 1.45
+        y += cfg.get("block_gap_in", 1.45)
 
 
 def render_slide_title_top_grid_2x2(slide, data):
-    mx = THEME_ACTIVE["layout"]["margin_x_in"]
-    top = THEME_ACTIVE["layout"].get("max_content_top_in", 2.2)
+    layout = THEME_ACTIVE["layout"]
+    cfg = _theme_get("max.layouts.title_top_grid_2x2", {})
+    density = _theme_get("max.density", {})
+    body = _theme_get("max.body", {})
+
+    mx = layout["margin_x_in"]
+    top = cfg.get("content_top_in", layout.get("max_content_top_in", 2.2))
     width = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
-    gap = THEME_ACTIVE["layout"]["column_gap_in"]
+    gap = layout["column_gap_in"]
     col_width = (width - gap) / 2
-    row_height = 2.05
-    cards = data["listas"][:4]
+    row_height = cfg.get("row_height_in", 2.05)
+    max_cards = density.get("grid_max_cards", 4)
+    max_items = density.get("grid_max_items_per_card", 2)
+    cards = data["listas"][:max_cards]
     for idx, secao in enumerate(cards):
         col = idx % 2
         row = idx // 2
@@ -948,15 +1103,48 @@ def render_slide_title_top_grid_2x2(slide, data):
         top_pos = top + row * row_height
         header = f"{idx + 1:02d}"
         body_title = secao.get("titulo", "")
-        body_text = " ".join(secao.get("itens", [])[:2])
-        _add_body_lines(slide, [header], Inches(left), Inches(top_pos), Inches(col_width), Inches(0.35), size=16)
-        _add_body_lines(slide, [body_title], Inches(left), Inches(top_pos + 0.35), Inches(col_width), Inches(0.55), size=18)
-        _add_body_lines(slide, [body_text], Inches(left), Inches(top_pos + 0.9), Inches(col_width), Inches(0.95), size=15)
+        items = _dedupe_preserve(secao.get("itens", []))
+        body_text = " ".join(items[:max_items])
+        _add_body_lines(
+            slide,
+            [header],
+            Inches(left),
+            Inches(top_pos),
+            Inches(col_width),
+            Inches(0.35),
+            size=cfg.get("header_size", 16),
+            line_spacing=body.get("line_spacing_text", 1.22),
+        )
+        _add_body_lines(
+            slide,
+            [body_title],
+            Inches(left),
+            Inches(top_pos + 0.35),
+            Inches(col_width),
+            Inches(0.55),
+            size=cfg.get("title_size", 18),
+            line_spacing=body.get("line_spacing_text", 1.22),
+        )
+        _add_body_lines(
+            slide,
+            [body_text],
+            Inches(left),
+            Inches(top_pos + 0.9),
+            Inches(col_width),
+            Inches(0.95),
+            size=cfg.get("text_size", 15),
+            line_spacing=body.get("line_spacing_bullets", 1.14),
+        )
 
 
 def render_slide_title_top_text_block(slide, data):
-    mx = THEME_ACTIVE["layout"]["margin_x_in"]
-    top = THEME_ACTIVE["layout"].get("max_content_top_in", 2.2)
+    layout = THEME_ACTIVE["layout"]
+    cfg = _theme_get("max.layouts.title_top_text_block", {})
+    density = _theme_get("max.density", {})
+    body = _theme_get("max.body", {})
+
+    mx = layout["margin_x_in"]
+    top = cfg.get("content_top_in", layout.get("max_content_top_in", 2.2))
     width = THEME_ACTIVE["slide"]["width_in"] - (mx * 2)
     text_parts = []
     for secao in data["listas"]:
@@ -964,14 +1152,16 @@ def render_slide_title_top_text_block(slide, data):
             text_parts.append(" ".join(secao["itens"]))
         elif secao.get("titulo"):
             text_parts.append(secao["titulo"])
+    texto = _truncate_words(" ".join(_dedupe_preserve(text_parts)), density.get("text_block_max_words", 110))
     _add_body_lines(
         slide,
-        [" ".join(text_parts)],
-        Inches(mx + (width * 0.2)),
+        [texto],
+        Inches(mx + (width * cfg.get("left_offset_ratio", 0.2))),
         Inches(top),
-        Inches(width * 0.76),
-        Inches(3.7),
-        size=15,
+        Inches(width * cfg.get("width_ratio", 0.76)),
+        Inches(cfg.get("height_in", 3.7)),
+        size=cfg.get("body_size", THEME_ACTIVE["fonts"]["body_size"]),
+        line_spacing=body.get("line_spacing_text", 1.22),
     )
 
 
